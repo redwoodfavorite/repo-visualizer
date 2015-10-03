@@ -6,7 +6,7 @@ export default function getRepoData(githubURL) {
 	return new Promise((res, rej) => {
 
 		let paths = githubURL.split('/'),
-			repo = paths[paths.length - 1],
+			repo  = paths[paths.length - 1],
 			owner = paths[paths.length - 2];
 
 		let request = new XMLHttpRequest();
@@ -27,16 +27,17 @@ export default function getRepoData(githubURL) {
 
 		let pathsToTrees = {
 			'/': {
-				path: '/',
+				name: 'root',
 				blobs: [],
 				subDir: [],
-				size: 0
+				totalSize: 0,
+				size: {}
 			}
 		};
 
 		let items = responseJSON.tree,
 			name, split, tree, parent,
-			directory;
+			directory, extension;
 
 		items.forEach(item => {
 			switch (item.type) {
@@ -44,12 +45,14 @@ export default function getRepoData(githubURL) {
 				case TYPE_BLOB:
 					split = item.path.split('/'),
 					name = split.pop(),
-					directory = split.join('/') || '/';
+					directory = split.join('/') || '/',
+					extension = name.split('.').pop();
 
 					parent = pathsToTrees[directory];
 					parent.blobs.push({
 						name: name,
-						size: item.size
+						totalSize: item.size,
+						ext: extension
 					});
 					break;
 
@@ -59,7 +62,8 @@ export default function getRepoData(githubURL) {
 					parent = split.join('/') || '/';
 					tree = {
 						name: item.path,
-						size: 0,
+						totalSize: 0,
+						size: {},
 						blobs: [],
 						subDir: []
 					};
@@ -81,8 +85,19 @@ export default function getRepoData(githubURL) {
 }
 
 function sumDirSize(dir) {
-	dir.blobs.forEach(blob => dir.size += blob.size);
-	dir.subDir.forEach(sub => dir.size += sumDirSize(sub));
+	dir.blobs.forEach(blob => {
+		dir.totalSize += blob.totalSize;
+		dir.size[blob.ext] = dir.size[blob.ext] || 0;
+		dir.size[blob.ext] += blob.totalSize;
+	});
 
-	return dir.size;
+	dir.subDir.forEach(sub => {
+		dir.totalSize += sumDirSize(sub)
+		for (let ext in sub.size) {
+			dir.size[ext] = dir.size[ext] || 0;
+			dir.size[ext] += sub.size[ext];
+		}
+	});
+
+	return dir.totalSize;
 }

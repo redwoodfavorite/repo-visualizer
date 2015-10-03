@@ -1,3 +1,8 @@
+html {
+	font-family: Helvetica;
+	font-weight: thin;
+}
+
 form {
 	margin: auto;
 	width: 200px;
