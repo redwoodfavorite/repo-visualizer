@@ -1,3 +1,4 @@
+import d3Extensions from './helpers/d3Extensions';
 import Visualizer from './visualizer/Visualizer';
 import getRepoData from './visualizer/getRepoData';
 
@@ -16,7 +17,8 @@ window.addEventListener('load', () => {
 			.then(repo => {
 				new Visualizer({
 					selector: 'body',
-					repo: repo
+					tree: repo[0],
+					user: repo[1]
 				});
 			});
 

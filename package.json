@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "lodash": "^3.10.1",
     "react": "^0.13.3"
   },
   "devDependencies": {
@@ -18,6 +19,8 @@
     "dat-gui": "^0.5.0",
     "flux": "^2.1.1",
     "json-loader": "^0.5.3",
+    "pleasejs": "^0.4.2",
+    "trianglify": "^0.3.1",
     "tween.js": "^15.0.0",
     "webpack": "^1.12.2"
   }

@@ -3,23 +3,37 @@ export default function getRepoData(githubURL) {
 	const TYPE_BLOB = "blob";
 	const TYPE_TREE = "tree";
 
-	return new Promise((res, rej) => {
+	let paths = githubURL.split('/'),
+		repo  = paths[paths.length - 1],
+		owner = paths[paths.length - 2];
 
-		let paths = githubURL.split('/'),
-			repo  = paths[paths.length - 1],
-			owner = paths[paths.length - 2];
+	return Promise.all([
+		new Promise((res, rej) => {
 
-		let request = new XMLHttpRequest();
-			request.addEventListener('load', data => {
-				let tree = buildTree(
-					JSON.parse(data.target.response)
-				);
-				res(tree);
-			});
+			let request = new XMLHttpRequest();
+				request.addEventListener('load', data => {
+					let tree = buildTree(
+						JSON.parse(data.target.response)
+					);
+					res(tree);
+				});
 
-			request.open("GET", `http://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
-			request.send();
-	});
+				request.open("GET", `http://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
+				request.send();
+		}),
+		new Promise((res, rej) => {
+
+			let request = new XMLHttpRequest();
+				request.addEventListener('load', data => {
+					let user = JSON.parse(data.target.response);
+
+					res(user);
+				});
+
+				request.open("GET", `http://api.github.com/users/${owner}`);
+				request.send();
+		})
+	]);
 
 	function buildTree(responseJSON) {
 		if (responseJSON.truncated)

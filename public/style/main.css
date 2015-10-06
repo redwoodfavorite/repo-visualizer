@@ -6,24 +6,24 @@ html {
 form {
 	margin: auto;
 	width: 200px;
-	position: relative;
+	position: absolute;
 	top: 50%;
-	transform: translateY(-50%);
+	left: 50%;
+	transform: translate(-50%, -50%);
 	display: block;
 }
 
 .node {
     fill: #ccc;
-    stroke: #fff;
-    stroke-width: 2px;
+    stroke-width: 0px;
 }
 
 .link {
     stroke: #777;
     stroke-width: 2px;
 }
-
+/*
 .label {
-	fill: black;
+	fill: #858585;
 	text-anchor: center;
-}
+}*/
