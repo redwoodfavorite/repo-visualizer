@@ -1,4 +1,4 @@
-export default function getRepoData(githubURL) {
+export default function getRepoData(githubURL, authToken) {
 
 	const TYPE_BLOB = "blob";
 	const TYPE_TREE = "tree";
@@ -18,7 +18,7 @@ export default function getRepoData(githubURL) {
 					res(tree);
 				});
 
-				request.open("GET", `http://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
+				request.open("GET", `http://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1&access_token=${authToken}`);
 				request.send();
 		}),
 		new Promise((res, rej) => {

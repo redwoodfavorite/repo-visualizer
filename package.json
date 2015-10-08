@@ -13,15 +13,18 @@
     "react": "^0.13.3"
   },
   "devDependencies": {
-    "babel-core": "^5.8.25",
-    "babel-loader": "^5.3.2",
-    "d3": "^3.5.6",
-    "dat-gui": "^0.5.0",
-    "flux": "^2.1.1",
-    "json-loader": "^0.5.3",
-    "pleasejs": "^0.4.2",
-    "trianglify": "^0.3.1",
-    "tween.js": "^15.0.0",
-    "webpack": "^1.12.2"
+    "babel-core": "*",
+    "babel-loader": "*",
+    "cookie-parser": "^1.4.0",
+    "d3": "*",
+    "dat-gui": "*",
+    "express": "^4.13.3",
+    "flux": "*",
+    "json-loader": "*",
+    "pleasejs": "*",
+    "request": "^2.64.0",
+    "trianglify": "*",
+    "tween.js": "*",
+    "webpack": "*"
   }
 }

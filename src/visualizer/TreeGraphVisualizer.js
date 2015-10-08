@@ -4,7 +4,13 @@ import COLORS from '../data/EXT_COLORS';
 import _ from 'lodash';
 import please from 'pleasejs';
 
-export default class Visualizer {
+const TYPES = {
+	files: 'BLOB',
+	folders: 'TREE'
+}
+
+export default class TreeGraph {
+
 
 	constructor(options) {
 		this.selector = options.selector;
@@ -42,15 +48,17 @@ export default class Visualizer {
 		 * Get node and link data from repo json
 		 */
 
-		// var nColors = Object.keys(this.repo.tree.size);
-		// var colors = please.make_color({
-		// 	colors_returned: nColors
-		// });
+		var nColors = Object.keys(this.repo.tree.size).length;
+		var colors = please.make_color({
+			colors_returned: nColors,
+			base_color: options.color
+		});
 
-		// var i = 0;
-		// for (var ext in this.repo.tree.size) {
-		// 	COLORS[ext] = colors[i++];
-		// }
+		var i = 0;
+		for (var ext in this.repo.tree.size) {
+			COLORS[ext] = colors[i++];
+		}
+
 
 		this._nodeData = [];
 		this._linkData = [];
@@ -104,10 +112,8 @@ export default class Visualizer {
 		 * Draw links nodes and text
 		 */
 
-		this.handleDataChange(
-			this.nodeData,
-			this.linkData
-		);
+		this.handleDataChange();
+		this.addProfileImage();
 	}
 
 	onTick() {
@@ -117,7 +123,7 @@ export default class Visualizer {
   			.attr('transform', d => {
   				let scale;
 
-  				if (d.type === 'TREE')
+  				if (d.type !== TYPES[this.parameters.show])
  					scale = 0;
  				else
   					scale = this.interpolateFileSize(
@@ -127,7 +133,22 @@ export default class Visualizer {
 				);
 
   				return `translate(${d.x}, ${d.y}) scale(${scale}, ${scale})`
-  			})
+  			});
+
+		let scale = this.interpolateFileSize(
+			this.nodeData[0].totalSize,
+			this.parameters.minNodeSize,
+			this.parameters.maxNodeSize
+		);
+
+  		this.profileImg
+  			.attr('transform',
+  				`translate(
+  					${this.nodeData[0].x},
+  					${this.nodeData[0].y}) 
+  					scale(${scale * 0.8}, ${scale * 0.8}
+  				)`
+  			);
 
   		this.text
 			.attr("x", d => d.x + 35 * this.interpolateFileSize(
@@ -164,20 +185,25 @@ export default class Visualizer {
 		this.linkData = this._linkData
 			.filter(d => pass[d.target.id]);
 
-		this.handleDataChange(
-			this.nodeData,
-			this.linkData
-		);
+		this.handleDataChange();
 
 		this.layout.nodes(this.nodeData);
 		this.layout.links(this.linkData);
 		this.layout.start();
 	}
 
-	handleDataChange(nodeData, linkData) {
+	addProfileImage() {
+		this.profileImg = this.svg
+  			.append('polygon')
+  			.style('pointer-events', 'none')
+		    .attr('points', '30,2 15,28 -15,28 -30,2 -15,-28 15,-28')
+  			.style('fill', 'url(#repo-profile)');
+	}
+
+	handleDataChange() {
 		this.link = this.svg
 			.selectAll('.link')
-		    .data(linkData, d => `${d.target.id}-${d.source.id}`)
+		    .data(this.linkData, d => `${d.target.id}-${d.source.id}`)
 
 		this.link
 			.enter()
@@ -185,23 +211,15 @@ export default class Visualizer {
 		    .attr('stroke-linecap', 'butt')
 		    .attr('class', 'link')
 			.style('stroke', d => {
-				let m = [0, 0, 0], ext, scale,
-					extColor, out = d3.rgb();
-
 				if (d.target.type === 'BLOB') {
 					return COLORS[d.target.ext];
 				}
-
-				for (ext in d.target.size) {
-					scale = d.target.size[ext] / d.target.totalSize;
-					extColor = d3.rgb(COLORS[ext]) || [0, 0, 0];
-
-					out.r += extColor.r * scale;
-					out.g += extColor.g * scale;
-					out.b += extColor.b * scale;
+				else {
+					return this.getInterpolatedColor(
+						d.target.size,
+						d.target.totalSize
+					);
 				}
-
-				return d3.rgb(out);
 			})
 
 		this.link
@@ -210,33 +228,28 @@ export default class Visualizer {
 
 		this.node = this.svg
 			.selectAll('.node')
-		    .data(nodeData, d => d.id);
+		    .data(this.nodeData, d => d.id);
 
 		this.node
 		    .enter()
 		    .append('polygon')
 		    .attr('points', '30,2 15,28 -15,28 -30,2 -15,-28 15,-28')
 		    .attr('class', 'node')
-  			.style('fill', d => COLORS[d.ext])
+  			.style('fill', d => {
+  				return d.type === 'BLOB'
+	  				? COLORS[d.ext]
+	  				: this.getInterpolatedColor(d.size, d.totalSize)
+	  			}
+  			)
 			.call(this.layout.drag);
 
 		this.node
 		    .exit()
 		    .remove();
 
-  		this.profileImg = this.svg
-  			.append('rect')
-  			.attr('width', 50)
-  			.attr('height', 50)
-  			.attr('x', this.rootPos[0] - 25)
-  			.attr('y', this.rootPos[1] - 25)
-  			.attr('rx', 10)
-  			.attr('ry', 10)
-  			.style('fill', 'url(#repo-profile)');
-
 		this.text = this.svg
 			.selectAll('text')
-		    .data(nodeData, d => d.id);
+		    .data(this.nodeData, d => d.id);
 
 		this.text
 		    .enter()
@@ -244,7 +257,7 @@ export default class Visualizer {
 	        .text(d => d.name)
 			.style('font-size', d => this.interpolateFileSize(
         		d.totalSize,
-        		5, 16
+        		7, 16
         	));
 
 		this.text
@@ -252,7 +265,8 @@ export default class Visualizer {
 		    .remove();
 
 		this.dirText = this.text
-			.filter(d => d.type === 'TREE')
+			.style('visibility', 'visible')
+			.filter(d => d.type !== TYPES[this.parameters.show] || d.id === 0)
 			.style('visibility', 'hidden')
 	}
 
@@ -260,6 +274,22 @@ export default class Visualizer {
 		return min
 	    + ( (size - min) / this.fileSizeRange )
 		* ( max - min );
+	}
+
+	getInterpolatedColor(extensions, total) {
+		let m = [0, 0, 0], ext, scale,
+			extColor, out = d3.rgb();
+
+		for (ext in extensions) {
+			scale = extensions[ext] / total;
+			extColor = d3.rgb(COLORS[ext]);
+
+			out.r += extColor.r * scale;
+			out.g += extColor.g * scale;
+			out.b += extColor.b * scale;
+		}
+
+		return out.hsl().toString();
 	}
 
 	initGUI() {
@@ -274,11 +304,13 @@ export default class Visualizer {
 			minFontSize: 5,
 			maxFontSize: 18,
 			gravity: 0.1,
-			minFileSize: 0
+			minFileSize: 0,
+			show: 'files'
 		};
 
 		this.GUI = new GUI();
 
+		this.showController = this.GUI.add(this.parameters, 'show', ['files', 'folders']);
 		this.toggleLabels = this.GUI.add(this.parameters, 'toggleLabels');
 		this.chargeController = this.GUI.add(this.parameters, 'nodeCharge', -2000, -200);
 		this.linkStrengthController = this.GUI.add(this.parameters, 'linkStrength', 0.3, 5.0);
@@ -293,6 +325,7 @@ export default class Visualizer {
 			this.text.style('display', value ? 'none' : '');
 		});
 
+		this.showController.onChange(this.handleDataChange.bind(this))
 		this.minFileSizeController.onChange(_.debounce(this.filterByFileSize.bind(this), 60));
 		this.chargeController.onChange(this.setLayoutParameters.bind(this));
 		this.linkStrengthController.onChange(this.setLayoutParameters.bind(this));
@@ -304,38 +337,19 @@ export default class Visualizer {
 	}
 
 	initDefines(options) {
-		// this.gradient = this.svg.append("svg:defs")
-		//   	.append("svg:linearGradient")
-		//     .attr("id", "gradient")
-		//     .attr("x1", "0%")
-		//     .attr("y1", "0%")
-		//     .attr("x2", "100%")
-		//     .attr("y2", "100%")
-		//     .attr("spreadMethod", "pad");
-
-		// this.gradient.append("svg:stop")
-		//     .attr("offset", "0%")
-		//     .attr("stop-color", "#0c0")
-		//     .attr("stop-opacity", 1);
-
-		// this.gradient.append("svg:stop")
-		//     .attr("offset", "100%")
-		//     .attr("stop-color", "#c00")
-		//     .attr("stop-opacity", 1);
-
 		let defs = this.svg
 			.append('defs');
 
 		defs
 			.append('pattern')
 			    .attr('id', 'repo-profile')
-			    .attr('width', 50)
-			    .attr('height', 50)
+			    .attr('width', 60)
+			    .attr('height', 60)
 			.append('image')
 				.attr('x', 0)
 				.attr('y', 0)
-				.attr('width', 50)
-				.attr('height', 50)
+				.attr('width', 60)
+				.attr('height', 60)
 				.attr('xlink:href', options.profileImg)
 	}
 
