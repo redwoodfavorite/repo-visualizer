@@ -75,7 +75,7 @@ export default function getRepoData(githubURL, authToken) {
 					name = split.pop(),
 					parent = split.join('/') || '/';
 					tree = {
-						name: item.path,
+						name: name,
 						totalSize: 0,
 						size: {},
 						blobs: [],

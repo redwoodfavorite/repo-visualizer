@@ -1,8 +1,9 @@
-import d3Extensions from './helpers/d3Extensions';
-import Visualizer from './visualizer/TreeGraphVisualizer';
-import getRepoData from './visualizer/getRepoData';
-import getAveragePixelColor from './helpers/getAveragePixelColor';
 import getCookie from './helpers/getCookie';
+import getRepoData from './helpers/getRepoData';
+import d3Extensions from './helpers/d3Extensions';
+import getAveragePixelColor from './helpers/getAveragePixelColor';
+
+import Visualizer from './visualizer/TreeGraphVisualizer';
 
 let authToken = getCookie('oauthToken');
 
@@ -11,7 +12,7 @@ window.addEventListener('load', () => {
 		input = document.getElementById('repo-url'),
 		login = document.getElementById('login');
 
-	if (authToken) login.style.display = 'none';
+	// if (authToken) login.style.display = 'none';
 
 	form.addEventListener('submit', event => {
 		event.preventDefault();

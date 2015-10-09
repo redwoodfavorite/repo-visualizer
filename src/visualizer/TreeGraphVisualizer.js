@@ -3,6 +3,7 @@ import { GUI } from 'dat-gui';
 import COLORS from '../data/EXT_COLORS';
 import _ from 'lodash';
 import please from 'pleasejs';
+import GHColors from 'github-colors';
 
 const TYPES = {
 	files: 'BLOB',
@@ -40,10 +41,13 @@ export default class TreeGraph {
 
 		this.minFileSize = Infinity;
 		this.maxFileSize = 0;
+		this.minDirSize = Infinity;
+		this.maxDirSize = 0;
 		this.fileSizeRange = 0;
 
 		this.findFileSizeRange(this.repo.tree);
 		this.fileSizeRange = this.maxFileSize - this.minFileSize;
+		this.dirSizeRange = this.maxDirSize - this.minDirSize;
 
 		/*
 		 * Get node and link data from repo json
@@ -115,7 +119,8 @@ export default class TreeGraph {
   				let scale = this.interpolateFileSize(
 					d.totalSize,
 					this.parameters.minNodeSize,
-					this.parameters.maxNodeSize
+					this.parameters.maxNodeSize,
+					d.type === 'TREE'
 				);
 
   				return `translate(${d.x}, ${d.y}) scale(${scale}, ${scale})`
@@ -124,7 +129,8 @@ export default class TreeGraph {
 		let scale = this.interpolateFileSize(
 			this.nodeData[0].totalSize,
 			this.parameters.minNodeSize,
-			this.parameters.maxNodeSize
+			this.parameters.maxNodeSize,
+			true
 		);
 
   		this.profileImg
@@ -141,7 +147,8 @@ export default class TreeGraph {
 				d.x + 35 * this.interpolateFileSize(
 					d.totalSize,
 					this.parameters.minNodeSize,
-					this.parameters.maxNodeSize
+					this.parameters.maxNodeSize,
+					d.type === 'TREE'
 				)
 			)
   			.attr("y", d => d.y)
@@ -151,7 +158,8 @@ export default class TreeGraph {
 	    		this.interpolateFileSize(
 	    			d.target.totalSize,
 	    			this.parameters.minLinkWidth,
-	    			this.parameters.maxLinkWidth
+	    			this.parameters.maxLinkWidth,
+	    			d.target.type === 'TREE'
 	    		)
 	    	)
 	    	.attr('x1', d => d.source.x)
@@ -161,17 +169,20 @@ export default class TreeGraph {
 	}
 
 	generateColorScheme(baseColor) {
-		
-		let nColors = Object.keys(this.repo.tree.size).length,
-			colors = please.make_color({
-				colors_returned: nColors,
-				base_color: baseColor
-			}),
-			i = 0,
-			ext;
 
-		for (ext in this.repo.tree.size) {
-			COLORS[ext] = colors[i++];
+
+		// let nColors = Object.keys(this.repo.tree.size).length,
+		// 	colors = please.make_color({
+		// 		colors_returned: nColors,
+		// 		base_color: baseColor
+		// 	}),
+		// 	i = 0,
+		// 	ext;
+
+		for (let ext in this.repo.tree.size) {
+			// COLORS[ext] = colors[i++];
+			// console.log( GHColors.ext(ext))
+			COLORS[ext] = GHColors.ext(ext).color;
 		}
 	}
 
@@ -273,7 +284,7 @@ export default class TreeGraph {
 	        .text(d => d.name)
 			.style('font-size', d => this.interpolateFileSize(
         		d.totalSize,
-        		7, 16
+        		7, 16, d.type === 'TREE'
         	));
 
 		this.text
@@ -286,10 +297,12 @@ export default class TreeGraph {
 			.style('visibility', 'hidden')
 	}
 
-	interpolateFileSize(size, min, max) {
+	interpolateFileSize(size, min, max, isTree) {
+		let range = isTree ? this.dirSizeRange : this.fileSizeRange;
+
 		return min
-	    + ( (size - min) / this.fileSizeRange )
-		* ( max - min );
+	    + (( (size - min) / range )
+	    		* ( max - min ));
 	}
 
 	getInterpolatedColor(extensions, total) {
@@ -332,8 +345,8 @@ export default class TreeGraph {
 		this.toggleLabels = this.GUI.add(this.parameters, 'toggleLabels');
 		this.chargeController = this.GUI.add(this.parameters, 'nodeCharge', -2000, -200);
 		this.linkStrengthController = this.GUI.add(this.parameters, 'linkStrength', 0.3, 5.0);
-		this.maxNodeSizeController = this.GUI.add(this.parameters, 'maxNodeSize', 0.6, 1.5);
-		this.minNodeSizeController = this.GUI.add(this.parameters, 'minNodeSize', 0.1, 0.6);
+		this.maxNodeSizeController = this.GUI.add(this.parameters, 'maxNodeSize', 0.4, 1.5);
+		this.minNodeSizeController = this.GUI.add(this.parameters, 'minNodeSize', 0.1, 0.4);
 		this.minLinkWidthController = this.GUI.add(this.parameters, 'minLinkWidth', 0.5, 5);
 		this.maxLinkWidthController = this.GUI.add(this.parameters, 'maxLinkWidth', 5, 100);
 		this.gravityController = this.GUI.add(this.parameters, 'gravity', -1, 2);
@@ -389,6 +402,12 @@ export default class TreeGraph {
 	}
 
 	findFileSizeRange(dir) {
+			if (dir.totalSize > this.maxDirSize)
+				this.maxDirSize = dir.totalSize;
+
+			else if (dir.totalSize < this.minDirSize)
+				this.minDirSize = dir.totalSize;
+
 		dir.blobs.forEach(blob => {
 			if (blob.totalSize > this.maxFileSize)
 				this.maxFileSize = blob.totalSize;
