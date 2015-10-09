@@ -15,6 +15,7 @@ export default class TreeGraph {
 	constructor(options) {
 		this.selector = options.selector;
 		this.element = document.querySelector(this.selector);
+		this.baseColor = options.color;
 		this.repo = {
 			tree: options.tree,
 			user: options.user
@@ -48,17 +49,7 @@ export default class TreeGraph {
 		 * Get node and link data from repo json
 		 */
 
-		var nColors = Object.keys(this.repo.tree.size).length;
-		var colors = please.make_color({
-			colors_returned: nColors,
-			base_color: options.color
-		});
-
-		var i = 0;
-		for (var ext in this.repo.tree.size) {
-			COLORS[ext] = colors[i++];
-		}
-
+		this.generateColorScheme(this.baseColor);
 
 		this._nodeData = [];
 		this._linkData = [];
@@ -121,12 +112,7 @@ export default class TreeGraph {
 
 		this.node
   			.attr('transform', d => {
-  				let scale;
-
-  				if (d.type !== TYPES[this.parameters.show])
- 					scale = 0;
- 				else
-  					scale = this.interpolateFileSize(
+  				let scale = this.interpolateFileSize(
 					d.totalSize,
 					this.parameters.minNodeSize,
 					this.parameters.maxNodeSize
@@ -151,7 +137,8 @@ export default class TreeGraph {
   			);
 
   		this.text
-			.attr("x", d => d.x + 35 * this.interpolateFileSize(
+			.attr("x", d => 
+				d.x + 35 * this.interpolateFileSize(
 					d.totalSize,
 					this.parameters.minNodeSize,
 					this.parameters.maxNodeSize
@@ -160,17 +147,32 @@ export default class TreeGraph {
   			.attr("y", d => d.y)
 
 	    this.link
-	    	.style('stroke-width', d => {
-	    		return this.interpolateFileSize(
+	    	.style('stroke-width', d => 
+	    		this.interpolateFileSize(
 	    			d.target.totalSize,
 	    			this.parameters.minLinkWidth,
 	    			this.parameters.maxLinkWidth
-	    		);
-	    	})
-	    	.attr('x1', d => { return d.source.x; })
-	        .attr('y1', d => { return d.source.y; })
-	        .attr('x2', d => { return d.target.x; })
-	        .attr('y2', d => { return d.target.y; });
+	    		)
+	    	)
+	    	.attr('x1', d => d.source.x)
+	        .attr('y1', d => d.source.y)
+	        .attr('x2', d => d.target.x)
+	        .attr('y2', d => d.target.y);
+	}
+
+	generateColorScheme(baseColor) {
+		
+		let nColors = Object.keys(this.repo.tree.size).length,
+			colors = please.make_color({
+				colors_returned: nColors,
+				base_color: baseColor
+			}),
+			i = 0,
+			ext;
+
+		for (ext in this.repo.tree.size) {
+			COLORS[ext] = colors[i++];
+		}
 	}
 
 	filterByFileSize(minFileSize) {
@@ -204,12 +206,15 @@ export default class TreeGraph {
 		this.link = this.svg
 			.selectAll('.link')
 		    .data(this.linkData, d => `${d.target.id}-${d.source.id}`)
-
-		this.link
+			
+ 		this.link
 			.enter()
 		    .append('line')
-		    .attr('stroke-linecap', 'butt')
 		    .attr('class', 'link')
+		    .attr('stroke-linecap', 'butt')
+
+		this.link
+		    .style('visibility', 'visible')
 			.style('stroke', d => {
 				if (d.target.type === 'BLOB') {
 					return COLORS[d.target.ext];
@@ -220,7 +225,11 @@ export default class TreeGraph {
 						d.target.totalSize
 					);
 				}
-			})
+			});
+		
+		this.link.filter(d => d.target.type === 'BLOB'
+			 && TYPES[this.parameters.show] === 'TREE')
+				 .style('visibility', 'hidden');
 
 		this.link
 			.exit()
@@ -228,20 +237,27 @@ export default class TreeGraph {
 
 		this.node = this.svg
 			.selectAll('.node')
-		    .data(this.nodeData, d => d.id);
+		    .data(this.nodeData, d => d.id)
 
 		this.node
 		    .enter()
 		    .append('polygon')
 		    .attr('points', '30,2 15,28 -15,28 -30,2 -15,-28 15,-28')
 		    .attr('class', 'node')
+			.call(this.layout.drag);
+
+		this.node
+		    .style('visibility', 'visible')
   			.style('fill', d => {
   				return d.type === 'BLOB'
 	  				? COLORS[d.ext]
 	  				: this.getInterpolatedColor(d.size, d.totalSize)
 	  			}
-  			)
-			.call(this.layout.drag);
+  			);
+
+		this.node
+  			.filter(d => d.type !== TYPES[this.parameters.show])
+				.style('visibility', 'hidden');
 
 		this.node
 		    .exit()
@@ -305,11 +321,13 @@ export default class TreeGraph {
 			maxFontSize: 18,
 			gravity: 0.1,
 			minFileSize: 0,
-			show: 'files'
+			show: 'files',
+			color: 'byProfile'
 		};
 
 		this.GUI = new GUI();
 
+		this.colorController = this.GUI.add(this.parameters, 'color', ['byProfile', 'random']);
 		this.showController = this.GUI.add(this.parameters, 'show', ['files', 'folders']);
 		this.toggleLabels = this.GUI.add(this.parameters, 'toggleLabels');
 		this.chargeController = this.GUI.add(this.parameters, 'nodeCharge', -2000, -200);
@@ -325,7 +343,8 @@ export default class TreeGraph {
 			this.text.style('display', value ? 'none' : '');
 		});
 
-		this.showController.onChange(this.handleDataChange.bind(this))
+		this.colorController.onChange(this.handleColorChange.bind(this));
+		this.showController.onChange(this.handleDataChange.bind(this));
 		this.minFileSizeController.onChange(_.debounce(this.filterByFileSize.bind(this), 60));
 		this.chargeController.onChange(this.setLayoutParameters.bind(this));
 		this.linkStrengthController.onChange(this.setLayoutParameters.bind(this));
@@ -334,6 +353,15 @@ export default class TreeGraph {
 		this.maxNodeSizeController.onChange(this.onTick.bind(this));
 		this.minLinkWidthController.onChange(this.onTick.bind(this));
 		this.maxLinkWidthController.onChange(this.onTick.bind(this));
+	}
+
+	handleColorChange(value) {
+		this.generateColorScheme(
+			value === 'byProfile'
+			? this.baseColor
+			: undefined
+		);
+		this.handleDataChange();
 	}
 
 	initDefines(options) {
