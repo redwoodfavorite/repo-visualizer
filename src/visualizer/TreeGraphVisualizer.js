@@ -25,8 +25,8 @@ export default class TreeGraph {
 		this.height = this.element.offsetHeight;
 		this.parameters = null;
 		this.rootPos = [
-			this.width * 0.5,
-			this.height * 0.5
+			this.width * 0.8,
+			this.height * 0.8
 		];
 
 		/*
@@ -144,7 +144,7 @@ export default class TreeGraph {
 
   		this.text
 			.attr("x", d => 
-				d.x + 35 * this.interpolateFileSize(
+				d.x + 1 * this.interpolateFileSize(
 					d.totalSize,
 					this.parameters.minNodeSize,
 					this.parameters.maxNodeSize,
@@ -267,7 +267,7 @@ export default class TreeGraph {
   			);
 
 		this.node
-  			.filter(d => d.type !== TYPES[this.parameters.show])
+  			.filter(d => d.type !== TYPES[this.parameters.show] && d.id !== 0)
 				.style('visibility', 'hidden');
 
 		this.node

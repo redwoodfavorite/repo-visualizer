@@ -10,9 +10,9 @@ let authToken = getCookie('oauthToken');
 window.addEventListener('load', () => {
 	let	form = document.querySelector('form'),
 		input = document.getElementById('repo-url'),
-		login = document.getElementById('login');
+		login = document.getElementById('logins');
 
-	// if (authToken) login.style.display = 'none';
+	if (authToken) login.style.display = 'none';
 
 	form.addEventListener('submit', event => {
 		event.preventDefault();

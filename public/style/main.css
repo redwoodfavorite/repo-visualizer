@@ -1,6 +1,7 @@
 html {
 	font-family: Helvetica;
 	font-weight: thin;
+	background-color: #1A1A1A;
 }
 
 form {
@@ -29,6 +30,11 @@ a#logins {
 	position: absolute;
 	bottom: 10px;
 	right: 10px;
+}
+
+text {
+	fill: white;
+	text-anchor: middle;
 }
 
 .node {
