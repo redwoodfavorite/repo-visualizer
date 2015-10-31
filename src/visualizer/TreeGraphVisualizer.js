@@ -4,6 +4,7 @@ import COLORS from '../data/EXT_COLORS';
 import _ from 'lodash';
 import please from 'pleasejs';
 import GHColors from 'github-colors';
+import d3Tip from 'd3-tip';
 
 const TYPES = {
 	files: 'BLOB',
@@ -11,7 +12,6 @@ const TYPES = {
 }
 
 export default class TreeGraph {
-
 
 	constructor(options) {
 		this.selector = options.selector;
@@ -25,8 +25,8 @@ export default class TreeGraph {
 		this.height = this.element.offsetHeight;
 		this.parameters = null;
 		this.rootPos = [
-			this.width * 0.8,
-			this.height * 0.8
+			this.width * 0.5,
+			this.height * 0.5
 		];
 
 		/*
@@ -92,13 +92,17 @@ export default class TreeGraph {
 		/*
 		 * Create SVG canvas
 		 */
+		 this.initTooltip();
 
 		this.svg = d3
 			.select(this.selector)
 			.append('svg')
 		    .attr('width', this.width)
 		    .attr('height', this.height);
-		
+
+		this.svg
+			.call(this.tooltip)
+
 		this.initDefines({
 			profileImg: this.repo.user.avatar_url
 		});
@@ -117,11 +121,11 @@ export default class TreeGraph {
 		this.node
   			.attr('transform', d => {
   				let scale = this.interpolateFileSize(
-					d.totalSize,
-					this.parameters.minNodeSize,
-					this.parameters.maxNodeSize,
-					d.type === 'TREE'
-				);
+						d.totalSize,
+						this.parameters.minNodeSize,
+						this.parameters.maxNodeSize,
+						d.type === 'TREE'
+					);
 
   				return `translate(${d.x}, ${d.y}) scale(${scale}, ${scale})`
   			});
@@ -137,24 +141,13 @@ export default class TreeGraph {
   			.attr('transform',
   				`translate(
   					${this.nodeData[0].x},
-  					${this.nodeData[0].y}) 
+  					${this.nodeData[0].y})
   					scale(${scale * 0.8}, ${scale * 0.8}
   				)`
   			);
 
-  		this.text
-			.attr("x", d => 
-				d.x + 1 * this.interpolateFileSize(
-					d.totalSize,
-					this.parameters.minNodeSize,
-					this.parameters.maxNodeSize,
-					d.type === 'TREE'
-				)
-			)
-  			.attr("y", d => d.y)
-
 	    this.link
-	    	.style('stroke-width', d => 
+	    	.style('stroke-width', d =>
 	    		this.interpolateFileSize(
 	    			d.target.totalSize,
 	    			this.parameters.minLinkWidth,
@@ -184,6 +177,16 @@ export default class TreeGraph {
 			// console.log( GHColors.ext(ext))
 			COLORS[ext] = GHColors.ext(ext).color;
 		}
+	}
+
+	initTooltip() {
+		this.tooltip = d3Tip()
+		  .attr('class', 'd3-tip')
+		  .offset([-10, 0])
+		  .html(d => `
+				<strong>${d.type === 'TREE' ? 'folder' : 'file'}:</strong>
+				<span style='color:red'>${d.name}</span>`
+		  );
 	}
 
 	filterByFileSize(minFileSize) {
@@ -217,7 +220,7 @@ export default class TreeGraph {
 		this.link = this.svg
 			.selectAll('.link')
 		    .data(this.linkData, d => `${d.target.id}-${d.source.id}`)
-			
+
  		this.link
 			.enter()
 		    .append('line')
@@ -226,18 +229,18 @@ export default class TreeGraph {
 
 		this.link
 		    .style('visibility', 'visible')
-			.style('stroke', d => {
-				if (d.target.type === 'BLOB') {
-					return COLORS[d.target.ext];
-				}
-				else {
-					return this.getInterpolatedColor(
-						d.target.size,
-						d.target.totalSize
-					);
-				}
-			});
-		
+				.style('stroke', d => {
+					if (d.target.type === 'BLOB') {
+						return COLORS[d.target.ext];
+					}
+					else {
+						return this.getInterpolatedColor(
+							d.target.size,
+							d.target.totalSize
+						);
+					}
+				});
+
 		this.link.filter(d => d.target.type === 'BLOB'
 			 && TYPES[this.parameters.show] === 'TREE')
 				 .style('visibility', 'hidden');
@@ -255,7 +258,11 @@ export default class TreeGraph {
 		    .append('polygon')
 		    .attr('points', '30,2 15,28 -15,28 -30,2 -15,-28 15,-28')
 		    .attr('class', 'node')
-			.call(this.layout.drag);
+			.call(this.layout.drag)
+
+		this.node
+				.on('mouseover', this.tooltip.show)
+				.on('mouseout', this.tooltip.hide)
 
 		this.node
 		    .style('visibility', 'visible')
@@ -274,27 +281,6 @@ export default class TreeGraph {
 		    .exit()
 		    .remove();
 
-		this.text = this.svg
-			.selectAll('text')
-		    .data(this.nodeData, d => d.id);
-
-		this.text
-		    .enter()
-		    .append('text')
-	        .text(d => d.name)
-			.style('font-size', d => this.interpolateFileSize(
-        		d.totalSize,
-        		7, 16, d.type === 'TREE'
-        	));
-
-		this.text
-		    .exit()
-		    .remove();
-
-		this.dirText = this.text
-			.style('visibility', 'visible')
-			.filter(d => d.type !== TYPES[this.parameters.show] || d.id === 0)
-			.style('visibility', 'hidden')
 	}
 
 	interpolateFileSize(size, min, max, isTree) {
@@ -351,10 +337,6 @@ export default class TreeGraph {
 		this.maxLinkWidthController = this.GUI.add(this.parameters, 'maxLinkWidth', 5, 100);
 		this.gravityController = this.GUI.add(this.parameters, 'gravity', -1, 2);
 		this.minFileSizeController = this.GUI.add(this.parameters, 'minFileSize', 0, 10000);
-
-		this.toggleLabels.onChange(value => {
-			this.text.style('display', value ? 'none' : '');
-		});
 
 		this.colorController.onChange(this.handleColorChange.bind(this));
 		this.showController.onChange(this.handleDataChange.bind(this));
